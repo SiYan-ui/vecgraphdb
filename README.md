@@ -56,6 +56,14 @@ db.add_pair('a', np.array([1,2,3], np.float32),
 print(db.topk_similar(np.array([1,2,3], np.float32), k=5))
 print(db.topk_correlated(np.array([1,2,3], np.float32), k=5))
 print(db.topk_correlated_by_id('a', k=5))
+
+# Batch insert
+ids = ["c", "d"]
+mat = np.array([[0, 0, 1], [1, 0, 0]], np.float32)
+db.add_vectors_batch(ids, mat)
+
+# Stats
+print(db.get_stats())
 ```
 
 ## Roadmap

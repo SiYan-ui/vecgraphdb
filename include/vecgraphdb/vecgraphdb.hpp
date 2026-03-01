@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 #include <optional>
@@ -24,13 +25,29 @@ public:
   // db_path: directory where data files live.
   // dim: vector dimension.
   // space: currently only "cosine" is supported.
-  VecGraphDB(std::string db_path, std::size_t dim, std::string space = "cosine");
+  // hnsw_M: HNSW M parameter (graph degree)
+  // hnsw_ef_construction: construction ef
+  // hnsw_ef_search: search ef (can be tuned via set_hnsw_ef_search)
+  VecGraphDB(std::string db_path, std::size_t dim, std::string space = "cosine",
+             std::size_t hnsw_M = 16, std::size_t hnsw_ef_construction = 200,
+             std::size_t hnsw_ef_search = 100);
+  ~VecGraphDB();
+
+  VecGraphDB(const VecGraphDB&) = delete;
+  VecGraphDB& operator=(const VecGraphDB&) = delete;
+  VecGraphDB(VecGraphDB&&) noexcept = default;
+  VecGraphDB& operator=(VecGraphDB&&) noexcept = default;
 
   std::size_t dim() const noexcept { return dim_; }
   const std::string& path() const noexcept { return db_path_; }
 
   // Adds a single vector (no edge created).
   void add_vector(const std::string& id, const std::vector<float>& vec);
+
+  // Adds a batch of vectors (no edges created).
+  // ids.size() must equal vecs.size().
+  void add_vectors_batch(const std::vector<std::string>& ids,
+                         const std::vector<std::vector<float>>& vecs);
 
   // Adds two vectors and creates an undirected edge between them.
   // If corr is not provided, it will be computed using Pearson correlation.
@@ -55,6 +72,23 @@ public:
   // Persist current state (vectors/ids are append-only already; this mainly snapshots HNSW).
   void flush();
 
+  // Reserve HNSW capacity to avoid repeated resizes.
+  void reserve(std::size_t max_elements);
+
+  // Set HNSW search ef (higher = more accurate, slower).
+  void set_hnsw_ef_search(std::size_t ef_search);
+
+  struct Stats {
+    std::size_t count = 0;
+    std::size_t dim = 0;
+    std::uint64_t vectors_bytes = 0;
+    std::uint64_t ids_bytes = 0;
+    std::uint64_t edges_bytes = 0;
+    std::uint64_t index_bytes = 0;
+  };
+
+  Stats get_stats() const;
+
 private:
   std::string db_path_;
   std::size_t dim_;
@@ -69,7 +103,7 @@ private:
 
   // HNSW index (pimpl)
   struct Impl;
-  Impl* impl_;
+  std::unique_ptr<Impl> impl_;
 
   std::uint32_t add_vector_internal(const std::string& id, const std::vector<float>& vec);
   static float pearson_corr(const std::vector<float>& x, const std::vector<float>& y);

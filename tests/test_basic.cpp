@@ -10,11 +10,19 @@ int main() {
   fs::path tmp = fs::temp_directory_path() / "vecgraphdb_test";
   fs::remove_all(tmp);
 
-  vecgraphdb::VecGraphDB db(tmp.string(), 3);
+  vecgraphdb::VecGraphDB db(tmp.string(), 3, "cosine", 8, 100, 32);
+  db.reserve(64);
 
   db.add_pair("a", {1,2,3}, "b", {1,2,2.9f});
   db.add_vector("c", {0,0,1});
+  db.add_vectors_batch({"d", "e"}, {{0,1,0}, {1,0,0}});
+  db.set_hnsw_ef_search(64);
   db.flush();
+
+  auto stats = db.get_stats();
+  assert(stats.count == 5);
+  assert(stats.dim == 3);
+  assert(stats.vectors_bytes > 0);
 
   auto sim = db.topk_similar({1,2,3}, 2);
   assert(!sim.empty());
