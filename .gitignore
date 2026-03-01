@@ -1,0 +1,20 @@
+# build
+build/
+_dist/
+*.so
+*.dylib
+*.dll
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# data
+/data/
+*.bin
+*.f32
+
+# editors
+.vscode/
+.idea/
