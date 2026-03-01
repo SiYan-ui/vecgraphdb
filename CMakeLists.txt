@@ -27,7 +27,7 @@ if(VECGRAPHDB_BUILD_PYTHON)
 endif()
 
 add_library(vecgraphdb STATIC
-  src/vecgraphdb.cpp
+  core/db_impl.cpp
 )
 set_target_properties(vecgraphdb PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -39,7 +39,7 @@ target_include_directories(vecgraphdb PUBLIC
 # Python module
 if(VECGRAPHDB_BUILD_PYTHON)
   pybind11_add_module(_vecgraphdb
-    python/bindings.cpp
+    bindings/py_vecgraphdb.cpp
   )
   target_link_libraries(_vecgraphdb PRIVATE vecgraphdb)
   target_compile_definitions(_vecgraphdb PRIVATE VECGRAPHDB_VERSION=\"${PROJECT_VERSION}\")
