@@ -23,6 +23,9 @@ int main() {
   // at least b should be correlated to a (via nearest anchor)
   assert(!corr.empty());
 
+  auto corr2 = db.topk_correlated_by_id("a", 2);
+  assert(!corr2.empty());
+
   std::printf("OK\n");
   return 0;
 }

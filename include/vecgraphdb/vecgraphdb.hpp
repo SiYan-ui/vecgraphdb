@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <unordered_map>
 
 namespace vecgraphdb {
 
@@ -40,11 +41,16 @@ public:
   // Top-k most similar vectors to query (cosine similarity).
   std::vector<SimilarResult> topk_similar(const std::vector<float>& query, std::size_t k) const;
 
-  // Returns top-k highest-correlation neighbors.
-  // If query_id exists in DB, uses that vector as anchor.
-  // Otherwise: finds nearest stored vector as anchor.
+  // Returns top-k highest-correlation neighbors using a vector query.
+  // Anchor selection:
+  //  - If you want explicit anchoring by an existing id, use topk_correlated_by_id.
+  //  - Otherwise: finds nearest stored vector as anchor.
   // Returns neighbors sorted by corr desc.
   std::vector<CorrResult> topk_correlated(const std::vector<float>& query, std::size_t k) const;
+
+  // Returns top-k highest-correlation neighbors for an existing stored vector id.
+  // Throws if id does not exist.
+  std::vector<CorrResult> topk_correlated_by_id(const std::string& id, std::size_t k) const;
 
   // Persist current state (vectors/ids are append-only already; this mainly snapshots HNSW).
   void flush();
@@ -55,6 +61,8 @@ private:
 
   // internal id (0..N-1) <-> external string id
   std::vector<std::string> ids_;
+  // external id -> internal id (MVP policy: ids are unique; duplicates rejected)
+  std::unordered_map<std::string, std::uint32_t> id_to_internal_;
 
   // adjacency list: for each internal node, list of (neighbor_internal_id, corr)
   std::vector<std::vector<std::pair<std::uint32_t, float>>> adj_;

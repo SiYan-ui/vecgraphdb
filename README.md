@@ -8,6 +8,7 @@ A lightweight **vector + graph** local database:
 - Query:
   - `topk_similar(query_vec)` → most similar vectors
   - `topk_correlated(query_vec)` → uses the *nearest stored vector* (anchor) and returns its highest-correlation neighbors
+  - `topk_correlated_by_id(id)` → anchor explicitly by an existing stored vector id
 
 ## Design (MVP)
 
@@ -54,6 +55,7 @@ db.add_pair('a', np.array([1,2,3], np.float32),
 
 print(db.topk_similar(np.array([1,2,3], np.float32), k=5))
 print(db.topk_correlated(np.array([1,2,3], np.float32), k=5))
+print(db.topk_correlated_by_id('a', k=5))
 ```
 
 ## Roadmap

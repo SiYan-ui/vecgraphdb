@@ -63,12 +63,19 @@ void VecGraphDB::load_or_init() {
 
   // Load ids
   ids_.clear();
+  id_to_internal_.clear();
   {
     std::ifstream in(data_dir(db_path_) / kIdsFile);
     if (in.good()) {
       std::string line;
       while (std::getline(in, line)) {
-        if (!line.empty()) ids_.push_back(line);
+        if (line.empty()) continue;
+        std::uint32_t idx = static_cast<std::uint32_t>(ids_.size());
+        // If data already has duplicates, keep the first occurrence as canonical.
+        if (id_to_internal_.find(line) == id_to_internal_.end()) {
+          id_to_internal_.emplace(line, idx);
+        }
+        ids_.push_back(line);
       }
     }
   }
@@ -142,6 +149,10 @@ static std::vector<float> l2_normalize_copy(const std::vector<float>& v) {
 std::uint32_t VecGraphDB::add_vector_internal(const std::string& id, const std::vector<float>& vec) {
   validate_vec(dim_, vec, "vec");
 
+  if (id_to_internal_.find(id) != id_to_internal_.end()) {
+    throw std::invalid_argument("duplicate id: " + id);
+  }
+
   // Store normalized vectors so inner product == cosine similarity
   std::vector<float> normed = l2_normalize_copy(vec);
 
@@ -157,6 +168,7 @@ std::uint32_t VecGraphDB::add_vector_internal(const std::string& id, const std::
 
   std::uint32_t internal = static_cast<std::uint32_t>(ids_.size());
   ids_.push_back(id);
+  id_to_internal_.emplace(id, internal);
   adj_.push_back({});
 
   // expand HNSW if needed
@@ -251,6 +263,20 @@ std::vector<SimilarResult> VecGraphDB::topk_similar(const std::vector<float>& qu
   return out;
 }
 
+static std::vector<CorrResult> topk_corr_from_anchor(const std::vector<std::string>& ids,
+                                                     const std::vector<std::vector<std::pair<std::uint32_t, float>>>& adj,
+                                                     std::uint32_t anchor,
+                                                     std::size_t k) {
+  auto neigh = adj.at(anchor);
+  std::sort(neigh.begin(), neigh.end(), [](auto& a, auto& b) { return a.second > b.second; });
+
+  std::vector<CorrResult> out;
+  for (std::size_t i = 0; i < neigh.size() && out.size() < k; ++i) {
+    out.push_back({ids.at(neigh[i].first), neigh[i].second});
+  }
+  return out;
+}
+
 std::vector<CorrResult> VecGraphDB::topk_correlated(const std::vector<float>& query, std::size_t k) const {
   validate_vec(dim_, query, "query");
   if (ids_.empty() || k == 0) return {};
@@ -261,14 +287,16 @@ std::vector<CorrResult> VecGraphDB::topk_correlated(const std::vector<float>& qu
   if (nn.empty()) return {};
   std::uint32_t anchor = static_cast<std::uint32_t>(nn.top().second);
 
-  auto neigh = adj_.at(anchor);
-  std::sort(neigh.begin(), neigh.end(), [](auto& a, auto& b) { return a.second > b.second; });
+  return topk_corr_from_anchor(ids_, adj_, anchor, k);
+}
 
-  std::vector<CorrResult> out;
-  for (std::size_t i = 0; i < neigh.size() && out.size() < k; ++i) {
-    out.push_back({ids_.at(neigh[i].first), neigh[i].second});
+std::vector<CorrResult> VecGraphDB::topk_correlated_by_id(const std::string& id, std::size_t k) const {
+  if (k == 0) return {};
+  auto it = id_to_internal_.find(id);
+  if (it == id_to_internal_.end()) {
+    throw std::invalid_argument("unknown id: " + id);
   }
-  return out;
+  return topk_corr_from_anchor(ids_, adj_, it->second, k);
 }
 
 void VecGraphDB::flush() {

@@ -47,5 +47,11 @@ PYBIND11_MODULE(_vecgraphdb, m) {
         for (auto& r : out) lst.append(py::make_tuple(r.id, r.corr));
         return lst;
     })
+    .def("topk_correlated_by_id", [](const VecGraphDB& self, const std::string& id, std::size_t k) {
+        auto out = self.topk_correlated_by_id(id, k);
+        py::list lst;
+        for (auto& r : out) lst.append(py::make_tuple(r.id, r.corr));
+        return lst;
+    })
     .def("flush", &VecGraphDB::flush);
 }
