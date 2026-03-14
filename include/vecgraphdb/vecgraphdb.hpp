@@ -1,5 +1,7 @@
 #pragma once
 
+#include "vecgraphdb/types.hpp"
+#include "vecgraphdb/thread_utils.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -9,16 +11,6 @@
 #include <unordered_map>
 
 namespace vecgraphdb {
-
-struct SimilarResult {
-  std::string id;
-  float score; // cosine similarity in [-1,1]
-};
-
-struct CorrResult {
-  std::string id;
-  float corr; // correlation coefficient in (-1,1)
-};
 
 class VecGraphDB {
 public:
@@ -78,16 +70,7 @@ public:
   // Set HNSW search ef (higher = more accurate, slower).
   void set_hnsw_ef_search(std::size_t ef_search);
 
-  struct Stats {
-    std::size_t count = 0;
-    std::size_t dim = 0;
-    std::uint64_t vectors_bytes = 0;
-    std::uint64_t ids_bytes = 0;
-    std::uint64_t edges_bytes = 0;
-    std::uint64_t index_bytes = 0;
-  };
-
-  Stats get_stats() const;
+  DbStats get_stats() const;
 
 private:
   std::string db_path_;
@@ -104,6 +87,9 @@ private:
   // HNSW index (pimpl)
   struct Impl;
   std::unique_ptr<Impl> impl_;
+
+  // Thread safety: reader-writer lock (or simple mutex on older compilers)
+  mutable ReaderWriterLock mutex_;
 
   std::uint32_t add_vector_internal(const std::string& id, const std::vector<float>& vec);
   static float pearson_corr(const std::vector<float>& x, const std::vector<float>& y);

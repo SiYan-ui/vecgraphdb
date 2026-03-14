@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 project(vecgraphdb VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -46,8 +47,28 @@ if(VECGRAPHDB_BUILD_PYTHON)
 endif()
 
 # Tests (doctest header-only)
+FetchContent_Declare(
+  doctest
+  GIT_REPOSITORY https://github.com/doctest/doctest.git
+  GIT_TAG v2.4.11
+)
+FetchContent_MakeAvailable(doctest)
+
 enable_testing()
+
+# Basic test (legacy)
 add_executable(vecgraphdb_tests tests/test_basic.cpp)
 target_include_directories(vecgraphdb_tests PRIVATE include)
 target_link_libraries(vecgraphdb_tests PRIVATE vecgraphdb)
-add_test(NAME vecgraphdb_tests COMMAND vecgraphdb_tests)
+add_test(NAME basic_tests COMMAND vecgraphdb_tests)
+
+# Comprehensive test suite
+add_executable(vecgraphdb_comprehensive_tests 
+  tests/test_comprehensive.cpp
+)
+target_include_directories(vecgraphdb_comprehensive_tests PRIVATE include)
+target_link_libraries(vecgraphdb_comprehensive_tests PRIVATE vecgraphdb doctest::doctest)
+set_target_properties(vecgraphdb_comprehensive_tests PROPERTIES
+  CXX_STANDARD 17
+)
+add_test(NAME comprehensive_tests COMMAND vecgraphdb_comprehensive_tests)
